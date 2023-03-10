@@ -136,14 +136,16 @@ impl Lv2Host{
 
         let features_ptr = features.as_ptr() as *const *const lv2_raw::core::LV2Feature;
         let replace_index = self.dead_list.pop();
-        if self.plugins.len() == self.plugin_cap && replace_index == None{
+        if self.plugins.len() == self.plugin_cap && replace_index.is_none() {
             return Err(AddPluginError::CapacityReached);
         }
         let mut uri_src = uri.to_owned();
         uri_src.push('\0'); // make sure it's null terminated
         self.uri_home.push(uri_src);
         let plugin = unsafe{
-            let uri = lilv_new_uri(self.world, (&self.uri_home[self.uri_home.len() - 1]).as_ptr() as *const i8);
+            let uri = lilv_new_uri(
+                self.world, (self.uri_home[self.uri_home.len() - 1]).as_ptr() as *const i8
+            );
             let plugin = lilv_plugins_get_by_uri(self.lilv_plugins, uri);
             lilv_node_free(uri);
             plugin
@@ -170,19 +172,32 @@ impl Lv2Host{
             for p in &mut ports{
                 match p.ptype{
                     PortType::Control => {
-                        lilv_instance_connect_port(instance, p.index, &mut p.value as *mut f32 as *mut ffi::c_void);
+                        lilv_instance_connect_port(
+                            instance, p.index, &mut p.value as *mut f32 as *mut ffi::c_void
+                        );
                     },
                     PortType::Audio => {
                         if p.is_input {
-                            lilv_instance_connect_port(instance, p.index, self.in_buf.as_ptr().offset(i*self.buffer_len as isize) as *mut ffi::c_void);
+                            lilv_instance_connect_port(
+                                instance, p.index,
+                                self.in_buf.as_ptr().offset(i*self.buffer_len as isize)
+                                as *mut ffi::c_void
+                            );
                             i += 1;
                         } else {
-                            lilv_instance_connect_port(instance, p.index, self.out_buf.as_ptr().offset(o*self.buffer_len as isize) as *mut ffi::c_void);
+                            lilv_instance_connect_port(
+                                instance, p.index,
+                                self.out_buf.as_ptr().offset(o*self.buffer_len as isize)
+                                as *mut ffi::c_void
+                            );
                             o += 1;
                         }
                     },
                     PortType::Atom => {
-                        lilv_instance_connect_port(instance, p.index, self.atom_buf.as_bytes().as_ptr() as *mut ffi::c_void);
+                        lilv_instance_connect_port(
+                            instance, p.index,
+                            self.atom_buf.as_bytes().as_ptr() as *mut ffi::c_void
+                        );
                     }
                     PortType::Other => {
                         lilv_instance_connect_port(instance, p.index, ptr::null_mut());
@@ -304,7 +319,9 @@ impl Lv2Host{
         self.in_buf[0] = input_frame.0;
         self.in_buf[1] = input_frame.1;
         let plugin = &mut self.plugins[index];
-        midi_into_atom_buffer(self.seq_urid, self.midi_urid, &[(0, input)], &mut self.atom_buf).unwrap();
+        midi_into_atom_buffer(
+            self.seq_urid, self.midi_urid, &[(0, input)], &mut self.atom_buf
+        ).unwrap();
 
         unsafe {
             lilv_instance_run(plugin.instance, 1);
@@ -323,8 +340,10 @@ impl Lv2Host{
     /// of samples returned.
     ///
     /// Returns two buffers of samples, or an error.
-    pub fn apply_multi(&mut self, index: usize, input: &[(u64, [u8; 3])], input_frame: [&[f32]; 2]) -> Result<[&[f32]; 2], ApplyError>{
-        midi_into_atom_buffer(self.seq_urid, self.midi_urid, &input, &mut self.atom_buf)
+    pub fn apply_multi(&mut self, index: usize, input: &[(u64, [u8; 3])], input_frame: [&[f32]; 2])
+        -> Result<[&[f32]; 2], ApplyError>
+{
+        midi_into_atom_buffer(self.seq_urid, self.midi_urid, input, &mut self.atom_buf)
             .map_err(ApplyError::AtomWriteError)?;
 
         if index >= self.plugins.len() { return Err(ApplyError::PluginIndexOutOfBound); }
@@ -347,7 +366,11 @@ impl Lv2Host{
     }
 }
 
-fn midi_into_atom_buffer(seq_type: URID<Sequence>, midi_type: URID<MidiEvent>, midibytes: &[(u64, [u8; 3])], atom_buf: &mut AtomSpace) -> Result<(), AtomWriteError> {
+fn midi_into_atom_buffer(
+    seq_type: URID<Sequence>, midi_type: URID<MidiEvent>,
+    midibytes: &[(u64, [u8; 3])], atom_buf: &mut AtomSpace
+    ) -> Result<(), AtomWriteError>
+{
     let mut cursor = atom_buf.write();
     let mut sequence = cursor.write_atom(seq_type)?.with_frame_unit()?;
 
@@ -455,7 +478,9 @@ pub struct Port{
 type CreatePortsRes = (Vec<Port>, HashMap<String, usize>, usize, usize, usize);
 
 // ([ports], [(port_name, index)], n_audio_in, n_audio_out, n_atom_in)
-unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl) -> Result<CreatePortsRes, AddPluginError>{
+unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl)
+    -> Result<CreatePortsRes, AddPluginError>
+{
     if world.is_null() { return Err(AddPluginError::WorldIsNull); }
     if plugin.is_null() { return Err(AddPluginError::PluginIsNull); }
 
@@ -470,14 +495,18 @@ unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl) -> 
     let mins = vec![0.0f32; n_ports as usize];
     let maxs = vec![0.0f32; n_ports as usize];
     let defs = vec![0.0f32; n_ports as usize];
-    lilv_plugin_get_port_ranges_float(plugin, mins.as_ptr() as *mut f32, maxs.as_ptr() as *mut f32, defs.as_ptr() as *mut f32);
+    lilv_plugin_get_port_ranges_float(
+        plugin, mins.as_ptr() as *mut f32, maxs.as_ptr() as *mut f32, defs.as_ptr() as *mut f32
+    );
 
     let lv2_input_port = lilv_new_uri(world, LILV_URI_INPUT_PORT.as_ptr() as *const i8);
     let lv2_output_port = lilv_new_uri(world, LILV_URI_OUTPUT_PORT.as_ptr() as *const i8);
     let lv2_audio_port = lilv_new_uri(world, LILV_URI_AUDIO_PORT.as_ptr() as *const i8);
     let lv2_control_port = lilv_new_uri(world, LILV_URI_CONTROL_PORT.as_ptr() as *const i8);
     let lv2_atom_port = lilv_new_uri(world, LILV_URI_ATOM_PORT.as_ptr() as *const i8);
-    let lv2_connection_optional = lilv_new_uri(world, LILV_URI_CONNECTION_OPTIONAL.as_ptr() as *const i8);
+    let lv2_connection_optional = lilv_new_uri(
+        world, LILV_URI_CONNECTION_OPTIONAL.as_ptr() as *const i8
+    );
 
     for i in 0..n_ports{
         let lport = lilv_plugin_get_port_by_index(plugin, i);
@@ -502,8 +531,9 @@ unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl) -> 
         let optional = lilv_port_has_property(plugin, lport, lv2_connection_optional);
 
         let is_input = if lilv_port_is_a(plugin, lport, lv2_input_port) { true }
-        else if !lilv_port_is_a(plugin, lport, lv2_output_port) && !optional { return Err(AddPluginError::PortNeitherInputOrOutput); }
-        else { false };
+        else if !lilv_port_is_a(plugin, lport, lv2_output_port) && !optional {
+            return Err(AddPluginError::PortNeitherInputOrOutput);
+        } else { false };
 
         let ptype = if lilv_port_is_a(plugin, lport, lv2_control_port) { PortType::Control }
         else if lilv_port_is_a(plugin, lport, lv2_audio_port) {
