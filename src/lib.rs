@@ -127,14 +127,14 @@ impl Lv2Host{
     ///
     /// Return the index of the plugin if added properly, or an error.
     pub fn add_plugin(&mut self, uri: &str, name: String) -> Result<usize, AddPluginError>{
-        let feature_vec = vec![lv2_raw::core::LV2Feature {
+        let feature_vec = [lv2_raw::core::LV2Feature {
             uri: LV2_URID_MAP.as_ptr() as *const i8,
             data: &mut self.map_interface as *mut lv2_sys::LV2_URID_Map as *mut std::ffi::c_void,
         }];
-        let mapfp = feature_vec.as_ptr() as *const lv2_raw::core::LV2Feature;
-        let features = vec![mapfp, std::ptr::null::<lv2_raw::core::LV2Feature>()];
+        let mapfp = feature_vec.as_ptr();
+        let features = [mapfp, std::ptr::null::<lv2_raw::core::LV2Feature>()];
 
-        let features_ptr = features.as_ptr() as *const *const lv2_raw::core::LV2Feature;
+        let features_ptr = features.as_ptr();
         let replace_index = self.dead_list.pop();
         if self.plugins.len() == self.plugin_cap && replace_index.is_none() {
             return Err(AddPluginError::CapacityReached);
@@ -462,7 +462,7 @@ pub enum PortType{ Control, Audio, Atom, Other }
 
 #[derive(Debug)]
 pub struct Port{
-    lilv_port: *const LilvPort,
+    _lilv_port: *const LilvPort,
     index: u32,
     optional: bool,
     is_input: bool,
@@ -517,13 +517,13 @@ unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl)
 
         let lilv_name = lilv_port_get_name(plugin, lport);
         let lilv_str = lilv_node_as_string(lilv_name);
-        let c_str = CStr::from_ptr(lilv_str as *const i8);
+        let c_str = CStr::from_ptr(lilv_str);
         let name = c_str.to_str().expect("Lv2hm: could not build port name string.").to_owned();
         lilv_node_free(lilv_name);
 
         let lilv_symbol = lilv_port_get_symbol(plugin, lport);
         let lilv_str = lilv_node_as_string(lilv_symbol);
-        let c_str = CStr::from_ptr(lilv_str as *const i8);
+        let c_str = CStr::from_ptr(lilv_str);
         let symbol = c_str.to_str().expect("Lv2hm: could not build port symbol string.").to_owned();
 
         names.insert(name.clone(), i as usize);
@@ -552,7 +552,7 @@ unsafe fn create_ports(world: *mut LilvWorld, plugin: *const LilvPluginImpl)
         else { PortType::Other };
 
         ports.push(Port{
-            lilv_port: lport,
+            _lilv_port: lport,
             index: i,
             ptype, is_input, optional, value, def, min, max, name, symbol,
         });

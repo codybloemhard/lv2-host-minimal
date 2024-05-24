@@ -1,12 +1,12 @@
 [package]
 name = "lv2-host-minimal"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Cody Bloemhard <codybloemhard@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "A very minimal lv2 host."
 license = "GPL-3.0-only"
 readme = "README.md"
-repository = "https://gitlab.com/codybloemhard/lv2-host-minimal"
+repository = "https://github.com/codybloemhard/lv2-host-minimal"
 keywords = ["lv2","host","plugin"]
 categories = ["multimedia::audio"]
 
@@ -23,7 +23,7 @@ path = "src/bin.rs"
 [dependencies]
 lilv-sys = "0.2.1"
 lv2_raw = "0.2.0"
-hound = "3.4.0"
+hound = "3.5.1"
 
 lv2-atom = { git = "https://github.com/RustAudio/rust-lv2", branch = "develop" , default-features = false }
 lv2-midi = { git = "https://github.com/RustAudio/rust-lv2", branch = "develop" }
